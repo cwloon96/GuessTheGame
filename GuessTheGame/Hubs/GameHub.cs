@@ -18,6 +18,7 @@ namespace GuessTheGame.Hubs
         private static List<string> words;
         private static string currentWord;
         private static string maskedWord;
+        private const int MAX_PLAYER = 2;
 
         public GameHub(IWordService wordService)
         {
@@ -31,7 +32,7 @@ namespace GuessTheGame.Hubs
                 await Clients.Caller.SendAsync("PopulatePlayers", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
 
                 // if there are players playing, will show the words
-                if (_players.Count == 2)
+                if (_players.Count == MAX_PLAYER)
                     await Clients.Caller.SendAsync("RefreshWord", maskedWord);
             }
         }
@@ -64,11 +65,12 @@ namespace GuessTheGame.Hubs
         public async Task<bool> Login(string username)
         {
             int initialMoney = 100;
-            if (_players.Count < 2 && _players.TryAdd(username, new Player(username, initialMoney, Context.ConnectionId)))
+
+            if (_players.Count < MAX_PLAYER && _players.TryAdd(username, new Player(username, initialMoney, Context.ConnectionId)))
             {
                 await Clients.All.SendAsync("UserJoined", new { username, money = initialMoney });
 
-                if (_players.Count == 2)
+                if (_players.Count == MAX_PLAYER)
                     await StartGame();
 
                 return true;
@@ -83,7 +85,7 @@ namespace GuessTheGame.Hubs
                 await Clients.All.SendAsync("UserLeaved", username);
 
             // not enough player, hide the word
-            if (_players.Count < 2)
+            if (_players.Count < MAX_PLAYER)
                 await Clients.All.SendAsync("RefreshWord", string.Empty);
         }
 
