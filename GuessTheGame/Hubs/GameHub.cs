@@ -1,154 +1,82 @@
 ﻿using GuessTheGame.Models;
-using GuessTheGame.Services;
+using GuessTheGame.Services.UserSession;
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace GuessTheGame.Hubs
 {
     public class GameHub : Hub
     {
-        private static ConcurrentDictionary<string, Player> _players = new ConcurrentDictionary<string, Player>();
-        private IWordService _wordService;
-        private static List<string> words;
-        private static string currentWord;
-        private static string maskedWord;
-        private const int MAX_PLAYER = 2;
+        private IUserSessionService _userSessionService;
+        private IServiceProvider _serviceProvider;
+        private static readonly ConcurrentDictionary<Guid, GameRoom> _rooms = new ConcurrentDictionary<Guid, GameRoom>();
 
-        public GameHub(IWordService wordService)
+        public GameHub(IUserSessionService userSessionService,
+            IServiceProvider serviceProvider)
         {
-            _wordService = wordService;
+            _userSessionService = userSessionService;
+            _serviceProvider = serviceProvider;
         }
 
         public override async Task OnConnectedAsync()
         {
-            if (_players.Count > 0)
+            if (_rooms.Count > 0)
             {
-                await Clients.Caller.SendAsync("PopulatePlayers", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
-
-                // if there are players playing, will show the words
-                if (_players.Count == MAX_PLAYER)
-                    await Clients.Caller.SendAsync("RefreshWord", maskedWord);
+                await Clients.Caller.SendAsync("PopulateRooms", _rooms.Select(x => new { x.Key, x.Value.PlayerCount, x.Value.SpectatorsCount }));
+                _userSessionService.AddUserSession(Context.ConnectionId);
             }
         }
 
-        public async Task StartGame()
+        public async Task<Guid> CreateRoom()
         {
-            // some buffer time before changing the word
-            Thread.Sleep(1500);
-            await Clients.All.SendAsync("RefreshWord", GetRandomMaskedWord());
+            var room = (GameRoom)_serviceProvider.GetService(typeof(GameRoom));
+            await room.AddSpectator(Context.ConnectionId);
+            _rooms.TryAdd(room.RoomGuid, room);
+
+            return room.RoomGuid;
         }
 
-        private void EnsureWordsExist()
+        public async Task JoinRoom(Guid roomGuid)
         {
-            if (words == null || (words != null && words.Count == 0))
-                words = _wordService.GetWords();
-        }
-
-        private string GetRandomMaskedWord()
-        {
-            EnsureWordsExist();
-            string word = words[new Random().Next(words.Count)];
-            words.Remove(word);
-
-            currentWord = word;
-            maskedWord = string.Join("", currentWord.Select(x => x == ' ' ? ' ' : '*'));
-
-            return maskedWord;
-        }
-
-        public async Task<bool> Login(string username)
-        {
-            int initialMoney = 100;
-
-            if (_players.Count < MAX_PLAYER && _players.TryAdd(username, new Player(username, initialMoney, Context.ConnectionId)))
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
-                await Clients.All.SendAsync("UserJoined", new { username, money = initialMoney });
+                await gameRoom.AddSpectator(Context.ConnectionId);
+                _userSessionService.UpdateUserSession(Context.ConnectionId, roomGuid);
 
-                if (_players.Count == MAX_PLAYER)
-                    await StartGame();
-
-                return true;
-            }
-
-            return false;
-        }
-
-        public async Task Logout(string username)
-        {
-            if (_players.TryRemove(username, out Player player))
-                await Clients.All.SendAsync("UserLeaved", username);
-
-            // not enough player, hide the word
-            if (_players.Count < MAX_PLAYER)
-                await Clients.All.SendAsync("RefreshWord", string.Empty);
-        }
-
-        public async Task ViewWord(string username, int index)
-        {
-            if (_players.TryGetValue(username, out Player player))
-            {
-                if (player.Money >= 10)
-                {
-                    if (maskedWord[index] == '*')
-                    {
-                        var newMasked = new StringBuilder(maskedWord);
-                        newMasked[index] = currentWord[index];
-                        maskedWord = newMasked.ToString();
-
-                        await Clients.All.SendAsync("RefreshWord", maskedWord);
-
-                        player.Money -= 10;
-                        await UpdateBalance(username, player.Money);
-
-                        // all masked removed
-                        if (maskedWord == currentWord)
-                            await StartGame();
-                    }
-                }
+                await Clients.Group(roomGuid.ToString()).SendAsync("UpdateSpectators", new { Count = gameRoom.SpectatorsCount });
             }
         }
 
-        private Task UpdateBalance(string username, int money) => Clients.All.SendAsync("UpdatePlayer", username, money);
-        
-        public async Task SubmitAnswer(string username, string answer)
+        public async Task LeaveRoom(Guid roomGuid)
         {
-            if (_players.TryGetValue(username, out Player player))
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
-                if (player.Money >= 10)
-                {
-                    player.Money -= 10;
-                    await UpdateBalance(username, player.Money);
+                gameRoom.RemoveSpectator(Context.ConnectionId);
+                _userSessionService.UpdateUserSession(Context.ConnectionId, Guid.Empty);
 
-                    bool correct = answer == currentWord;
-                    await Clients.All.SendAsync("ReceiveAnswer", username, answer, correct);
-                    if (correct)
-                    {
-                        int maskedCount = maskedWord.Select(x => x == '*').Count();
-                        int earned = maskedCount * 10;
-                        player.Money += earned;
-
-                        await UpdateBalance(username, player.Money);
-
-                        await StartGame();
-                    }
-                }
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomGuid.ToString());
+                await Clients.Group(roomGuid.ToString()).SendAsync("UpdateSpectators", new { Count = gameRoom.SpectatorsCount });
             }
+        }
+
+        public async Task Login(string username, Guid roomGuid)
+        {
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
+                await gameRoom.AddPlayer(username, Context.ConnectionId);
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            if (_players.Count > 0)
-            {
-                string username = _players.FirstOrDefault(entry => entry.Value.ConnectionId == Context.ConnectionId).Key;
+            Guid userLastRoom = _userSessionService.GetRoomGuidByConnectionIdAsync(Context.ConnectionId);
 
-                await Logout(username);
+            if(_rooms.TryGetValue(userLastRoom, out GameRoom gameRoom))
+            {
+                await gameRoom.DisconnectUser(Context.ConnectionId);
             }
+
             await base.OnDisconnectedAsync(exception);
         }
     }
