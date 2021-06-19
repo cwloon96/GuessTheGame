@@ -3,6 +3,7 @@ using GuessTheGame.Services.UserSession;
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -21,20 +22,23 @@ namespace GuessTheGame.Hubs
             _serviceProvider = serviceProvider;
         }
 
-        public override async Task OnConnectedAsync()
+        public override Task OnConnectedAsync()
         {
-            if (_rooms.Count > 0)
-            {
-                await Clients.Caller.SendAsync("PopulateRooms", _rooms.Select(x => new { x.Key, x.Value.PlayerCount, x.Value.SpectatorsCount }));
-                _userSessionService.AddUserSession(Context.ConnectionId);
-            }
+            _userSessionService.AddUserSession(Context.ConnectionId);
+
+            return Task.CompletedTask;
+        }
+
+        public IEnumerable<GameRoomDto> RetrieveRooms()
+        {
+            return _rooms.Select(x => new GameRoomDto { Id = x.Key, PlayerCount = x.Value.PlayerCount, SpectatorCount = x.Value.SpectatorsCount });
         }
 
         public async Task<Guid> CreateRoom()
         {
             var room = (GameRoom)_serviceProvider.GetService(typeof(GameRoom));
-            await room.AddSpectator(Context.ConnectionId);
             _rooms.TryAdd(room.RoomGuid, room);
+            await UpdateRooms();
 
             return room.RoomGuid;
         }
@@ -46,7 +50,7 @@ namespace GuessTheGame.Hubs
                 await gameRoom.AddSpectator(Context.ConnectionId);
                 _userSessionService.UpdateUserSession(Context.ConnectionId, roomGuid);
 
-                await Clients.Group(roomGuid.ToString()).SendAsync("UpdateSpectators", new { Count = gameRoom.SpectatorsCount });
+                await UpdateRooms();
             }
         }
 
@@ -54,30 +58,66 @@ namespace GuessTheGame.Hubs
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
-                gameRoom.RemoveSpectator(Context.ConnectionId);
+                await gameRoom.RemoveSpectator(Context.ConnectionId);
                 _userSessionService.UpdateUserSession(Context.ConnectionId, Guid.Empty);
 
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomGuid.ToString());
-                await Clients.Group(roomGuid.ToString()).SendAsync("UpdateSpectators", new { Count = gameRoom.SpectatorsCount });
+                if (gameRoom.IsEmpty())
+                    _rooms.TryRemove(roomGuid, out _);
+
+                await UpdateRooms();
             }
         }
 
-        public async Task Login(string username, Guid roomGuid)
+        public async Task<bool> JoinGame(string username, Guid roomGuid)
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
-                await gameRoom.AddPlayer(username, Context.ConnectionId);
+            {
+                if(await gameRoom.AddPlayer(username, Context.ConnectionId))
+                {
+                    await UpdateRooms();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public async Task ViewWord(Guid roomGuid, string username, int index)
+        {
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
+                await gameRoom.ViewWord(username, index);
+        }
+
+        public async Task SubmitAnswer(Guid roomGuid, string username, string answer)
+        {
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
+                await gameRoom.SubmitAnswer(username, answer);
+        }
+
+        public async Task LeaveGame(string username, Guid roomGuid)
+        {
+            if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
+            {
+                await gameRoom.RemovePlayer(username, Context.ConnectionId);
+                await UpdateRooms();
+            }
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
             Guid userLastRoom = _userSessionService.GetRoomGuidByConnectionIdAsync(Context.ConnectionId);
 
-            if(_rooms.TryGetValue(userLastRoom, out GameRoom gameRoom))
+            if (_rooms.TryGetValue(userLastRoom, out GameRoom gameRoom))
             {
                 await gameRoom.DisconnectUser(Context.ConnectionId);
             }
 
             await base.OnDisconnectedAsync(exception);
+        }
+
+        private async Task UpdateRooms()
+        {
+            await Clients.All.SendAsync("UpdateRooms", RetrieveRooms());
         }
     }
 }

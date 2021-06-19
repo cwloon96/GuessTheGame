@@ -1,0 +1,7 @@
+.room-container {
+    width: 20%;
+    float: left;
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid black;
+}

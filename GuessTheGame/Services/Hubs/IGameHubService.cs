@@ -7,7 +7,11 @@ namespace GuessTheGame.Services.Hubs
     {
         Task AddToGroupAsync(Guid roomGuid, string connectionId);
 
-        Task UpdateSpectatorView(string maskedWord, string connectionId);
+        Task RemoveFromGroupAsync(Guid roomGuid, string connectionId);
+
+        Task SendToGroupAsync(Guid groupId, string method, object obj);
+
+        Task UpdateCurrentWordAsync(string maskedWord, string connectionId);
 
         Task RefreshWordAsync(Guid roomGuid, string word);
 

@@ -1,5 +1,8 @@
 using GuessTheGame.Hubs;
+using GuessTheGame.Models;
 using GuessTheGame.Services;
+using GuessTheGame.Services.Hubs;
+using GuessTheGame.Services.UserSession;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
@@ -25,6 +28,10 @@ namespace GuessTheGame
             services.AddSignalR();
 
             services.AddTransient<IWordService, WordService>();
+            services.AddTransient<IGameHubService, GameHubService>();
+
+            services.AddSingleton<IUserSessionService, UserSessionService>();
+            services.AddTransient<GameRoom>();
 
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration =>

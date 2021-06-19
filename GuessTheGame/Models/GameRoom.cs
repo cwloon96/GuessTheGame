@@ -14,6 +14,8 @@ namespace GuessTheGame.Models
     {
         public int PlayerCount => _players.Count;
         public int SpectatorsCount => _spectators.Count;
+        public bool IsEmpty() => PlayerCount == 0 && SpectatorsCount == 0;
+
         public Guid RoomGuid { get; private set; }
 
         private ConcurrentDictionary<string, Player> _players = new ConcurrentDictionary<string, Player>();
@@ -37,15 +39,22 @@ namespace GuessTheGame.Models
         public async Task AddSpectator(string connectionId)
         {
             _spectators.Add(connectionId);
-            await _gameHubService.AddToGroupAsync(RoomGuid, connectionId);
             await _gameHubService.PopulatePlayersAsync(connectionId, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+
+            await _gameHubService.AddToGroupAsync(RoomGuid, connectionId);
+            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
 
             // if there are players playing, will show the words
             if (_players.Count == MAX_PLAYER)
-                await _gameHubService.UpdateSpectatorView(maskedWord, connectionId);
+                await _gameHubService.UpdateCurrentWordAsync(maskedWord, connectionId);
         }
 
-        public void RemoveSpectator(string connectionId) => _spectators.Remove(connectionId);
+        public async Task RemoveSpectator(string connectionId)
+        {
+            _spectators.Remove(connectionId);
+            await _gameHubService.RemoveFromGroupAsync(RoomGuid, connectionId);
+            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
+        }
 
         public async Task<bool> AddPlayer(string username, string connectionId)
         {
@@ -62,6 +71,15 @@ namespace GuessTheGame.Models
             }
 
             return false;
+        }
+
+        public async Task RemovePlayer(string username, string connectionId)
+        {
+            _players.TryRemove(username, out _);
+            await AddSpectator(connectionId);
+
+            await _gameHubService.SendToGroupAsync(RoomGuid, "PopulatePlayersToGroup", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+            await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username); 
         }
 
         public async Task ViewWord(string username, int index)
@@ -130,13 +148,12 @@ namespace GuessTheGame.Models
             {
                 if (_players.TryRemove(username, out Player player))
                 {
+                    await _gameHubService.SendToGroupAsync(RoomGuid, "PopulatePlayersToGroup", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
                     await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username);
                 }
             }
-            else
-            {
-                RemoveSpectator(connectionId);
-            }
+
+            await RemoveSpectator(connectionId);
         }
 
         private void EnsureWordsExist()

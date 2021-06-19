@@ -19,7 +19,17 @@ namespace GuessTheGame.Services.Hubs
             await _hubContext.Groups.AddToGroupAsync(connectionId, roomGuid.ToString());
         }
 
-        public async Task UpdateSpectatorView(string maskedWord, string connectionId)
+        public async Task RemoveFromGroupAsync(Guid roomGuid, string connectionId)
+        {
+            await _hubContext.Groups.RemoveFromGroupAsync(connectionId, roomGuid.ToString());
+        }
+
+        public async Task SendToGroupAsync(Guid roomGuid, string method, object obj)
+        {
+            await _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(method, obj);
+        }
+
+        public async Task UpdateCurrentWordAsync(string maskedWord, string connectionId)
         {
             await _hubContext.Clients.Client(connectionId).SendAsync("RefreshWord", maskedWord);
         }
