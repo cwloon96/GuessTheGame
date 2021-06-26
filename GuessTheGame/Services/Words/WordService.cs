@@ -16,6 +16,6 @@ namespace GuessTheGame.Services
             };
         }
 
-        public List<string> GetWords() => _words;
+        public List<string> GetWords() => new List<string>(_words);
     }
 }
