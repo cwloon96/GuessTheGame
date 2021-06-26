@@ -26,7 +26,7 @@ namespace GuessTheGame.Hubs
         {
             _userSessionService.AddUserSession(Context.ConnectionId);
 
-            return Task.CompletedTask;
+            return base.OnConnectedAsync();
         }
 
         public IEnumerable<GameRoomDto> RetrieveRooms()
