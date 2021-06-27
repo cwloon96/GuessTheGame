@@ -11,5 +11,7 @@
         public const string UPDATE_GAME_PLAYER_BALANCE = "UpdateGamePlayerBalance";
         public const string UPDATE_GAME_PLAYER_JOINED = "UpdateGamePlayerJoined";
         public const string UPDATE_GAME_PLAYER_LEFT = "UpdateGamePlayerLeft";
+
+        public const string POPULATE_SPECTATOR_PLAYER_INFO = "PopulateSpectatorPlayerInfo";
     }
 }

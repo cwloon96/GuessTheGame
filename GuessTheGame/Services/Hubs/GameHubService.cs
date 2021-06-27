@@ -48,6 +48,6 @@ namespace GuessTheGame.Services.Hubs
             _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("ReceiveAnswer", username, answer, correct);
 
         public Task PopulatePlayersAsync(string connectionId, object obj) =>
-            _hubContext.Clients.Client(connectionId).SendAsync("PopulatePlayers", obj);
+            _hubContext.Clients.Client(connectionId).SendAsync(GameHubMethod.POPULATE_SPECTATOR_PLAYER_INFO, obj);
     }
 }

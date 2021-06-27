@@ -44,7 +44,7 @@ export const GameRoom = ({ match }) => {
       setWord(word);
     });
 
-    signalR.on("PopulatePlayers", (players) => {
+    signalR.on("PopulateSpectatorPlayerInfo", (players) => {
       setUsers(players);
     });
 
@@ -62,7 +62,7 @@ export const GameRoom = ({ match }) => {
 
     return () => {
       signalR.off("UpdateGameWord");
-      signalR.off("PopulatePlayers");
+      signalR.off("PopulateSpectatorPlayerInfo");
       signalR.off("ReceiveAnswer");
       signalR.invoke("LeaveRoom", id);
     };
