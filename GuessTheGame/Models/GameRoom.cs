@@ -18,7 +18,7 @@ namespace GuessTheGame.Models
 
         public Guid RoomGuid { get; private set; }
 
-        private ConcurrentDictionary<string, Player> _players = new ConcurrentDictionary<string, Player>();
+        private ConcurrentDictionary<string, Player> _players;
         private List<string> _spectators;
         private IWordService _wordService;
         private List<string> words;
@@ -34,6 +34,7 @@ namespace GuessTheGame.Models
             _wordService = wordService;
             _gameHubService = gameHubService;
             _spectators = new List<string>();
+            _players = new ConcurrentDictionary<string, Player>();
         }
 
         public async Task AddSpectator(string connectionId)
@@ -59,6 +60,9 @@ namespace GuessTheGame.Models
         public async Task<bool> AddPlayer(string username, string connectionId)
         {
             int initialMoney = 100;
+
+            _spectators.Remove(connectionId);
+            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
 
             if (_players.Count < MAX_PLAYER && _players.TryAdd(username, new Player(username, initialMoney, connectionId)))
             {
