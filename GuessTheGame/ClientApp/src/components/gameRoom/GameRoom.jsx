@@ -61,7 +61,7 @@ export const GameRoom = ({ match }) => {
     signalR.invoke("JoinRoom", id);
 
     return () => {
-        signalR.off("UpdateGameWord");
+      signalR.off("UpdateGameWord");
       signalR.off("PopulatePlayers");
       signalR.off("ReceiveAnswer");
       signalR.invoke("LeaveRoom", id);
@@ -70,16 +70,15 @@ export const GameRoom = ({ match }) => {
 
   useEffect(() => {
     if (signalR) {
-      console.log("register joined");
-      signalR.off("PlayerJoined");
-      signalR.on("PlayerJoined", (user) => {
+      signalR.off("UpdateGamePlayerJoined");
+      signalR.on("UpdateGamePlayerJoined", (user) => {
         const currentUsers = [...users];
         currentUsers.push({ ...user });
         setUsers(currentUsers);
       });
 
-      signalR.off("PlayerLeaved");
-      signalR.on("PlayerLeaved", (username) => {
+      signalR.off("UpdateGamePlayerLeft");
+      signalR.on("UpdateGamePlayerLeft", (username) => {
         const currentUsers = users.filter((x) => x.username !== username);
         setUsers(currentUsers);
       });

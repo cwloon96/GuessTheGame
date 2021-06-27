@@ -31,11 +31,11 @@ namespace GuessTheGame.Services.Hubs
             _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(GameHubMethod.UPDATE_GAME_WORD, word);
 
         public Task PlayerJoinAsync(Guid roomGuid, object obj) =>
-            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("PlayerJoined", obj);
+            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(GameHubMethod.UPDATE_GAME_PLAYER_JOINED, obj);
 
         public async Task PlayerLeftAsync(Guid roomGuid, string connectionId, string playerUsername)
         {
-            await _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("PlayerLeaved", playerUsername);
+            await _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(GameHubMethod.UPDATE_GAME_PLAYER_LEFT, playerUsername);
 
             // not enough player, hide the word
             await RefreshWordAsync(roomGuid, string.Empty);
