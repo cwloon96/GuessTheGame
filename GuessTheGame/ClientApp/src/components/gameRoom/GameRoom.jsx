@@ -40,7 +40,7 @@ export const GameRoom = ({ match }) => {
   };
 
   useEffect(() => {
-    signalR.on("RefreshWord", (word) => {
+    signalR.on("UpdateGameWord", (word) => {
       setWord(word);
     });
 
@@ -61,7 +61,7 @@ export const GameRoom = ({ match }) => {
     signalR.invoke("JoinRoom", id);
 
     return () => {
-      signalR.off("RefreshWord");
+        signalR.off("UpdateGameWord");
       signalR.off("PopulatePlayers");
       signalR.off("ReceiveAnswer");
       signalR.invoke("LeaveRoom", id);

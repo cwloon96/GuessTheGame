@@ -1,4 +1,5 @@
-﻿using GuessTheGame.Hubs;
+﻿using GuessTheGame.Common.Constants;
+using GuessTheGame.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Threading.Tasks;
@@ -24,10 +25,10 @@ namespace GuessTheGame.Services.Hubs
             _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(method, obj);
 
         public Task UpdateCurrentWordAsync(string maskedWord, string connectionId) =>
-            _hubContext.Clients.Client(connectionId).SendAsync("RefreshWord", maskedWord);
+            _hubContext.Clients.Client(connectionId).SendAsync(GameHubMethod.UPDATE_GAME_WORD, maskedWord);
 
         public Task RefreshWordAsync(Guid roomGuid, string word) =>
-            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("RefreshWord", word);
+            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(GameHubMethod.UPDATE_GAME_WORD, word);
 
         public Task PlayerJoinAsync(Guid roomGuid, object obj) =>
             _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("PlayerJoined", obj);
