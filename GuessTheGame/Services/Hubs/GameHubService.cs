@@ -41,8 +41,8 @@ namespace GuessTheGame.Services.Hubs
             await RefreshWordAsync(roomGuid, string.Empty);
         }
 
-        public Task UpdateBalanceAsync(Guid roomGuid, string username, int money) =>
-            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("UpdatePlayer", username, money);
+        public Task UpdatePlayerBalanceAsync(Guid roomGuid, string username, int money) =>
+            _hubContext.Clients.Group(roomGuid.ToString()).SendAsync(GameHubMethod.UPDATE_GAME_PLAYER_BALANCE, username, money);
 
         public Task ReceiveAnswerAsync(Guid roomGuid, string username, string answer, bool correct) =>
             _hubContext.Clients.Group(roomGuid.ToString()).SendAsync("ReceiveAnswer", username, answer, correct);

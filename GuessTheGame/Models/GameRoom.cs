@@ -102,7 +102,7 @@ namespace GuessTheGame.Models
                         await _gameHubService.RefreshWordAsync(RoomGuid, maskedWord);
 
                         player.Money -= 10;
-                        await UpdateBalance(username, player.Money);
+                        await UpdatePlayerBalance(username, player.Money);
 
                         // all masked removed
                         if (maskedWord == currentWord)
@@ -119,7 +119,7 @@ namespace GuessTheGame.Models
             await _gameHubService.RefreshWordAsync(RoomGuid, GetRandomMaskedWord());
         }
 
-        private Task UpdateBalance(string username, int money) => _gameHubService.UpdateBalanceAsync(RoomGuid, username, money);
+        private Task UpdatePlayerBalance(string username, int money) => _gameHubService.UpdatePlayerBalanceAsync(RoomGuid, username, money);
 
         public async Task SubmitAnswer(string username, string answer)
         {
@@ -128,7 +128,7 @@ namespace GuessTheGame.Models
                 if (player.Money >= 10)
                 {
                     player.Money -= 10;
-                    await UpdateBalance(username, player.Money);
+                    await UpdatePlayerBalance(username, player.Money);
 
                     bool correct = answer == currentWord;
                     await _gameHubService.ReceiveAnswerAsync(RoomGuid, username, answer, correct);
@@ -138,7 +138,7 @@ namespace GuessTheGame.Models
                         int earned = maskedCount * 10;
                         player.Money += earned;
 
-                        await UpdateBalance(username, player.Money);
+                        await UpdatePlayerBalance(username, player.Money);
 
                         await RestartGame();
                     }

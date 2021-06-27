@@ -19,7 +19,7 @@ namespace GuessTheGame.Services.Hubs
 
         Task PlayerJoinAsync(Guid roomGuid, object obj);
 
-        Task UpdateBalanceAsync(Guid roomGuid, string username, int money);
+        Task UpdatePlayerBalanceAsync(Guid roomGuid, string username, int money);
 
         Task ReceiveAnswerAsync(Guid roomGuid, string username, string answer, bool correct);
 

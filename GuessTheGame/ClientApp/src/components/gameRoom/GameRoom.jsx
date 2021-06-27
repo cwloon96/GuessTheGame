@@ -84,8 +84,8 @@ export const GameRoom = ({ match }) => {
         setUsers(currentUsers);
       });
 
-      signalR.off("UpdatePlayer");
-      signalR.on("UpdatePlayer", (username, money) => {
+      signalR.off("UpdateGamePlayerBalance");
+      signalR.on("UpdateGamePlayerBalance", (username, money) => {
         const currentUsers = [...users];
         const index = currentUsers.findIndex((x) => x.username === username);
         currentUsers[index].money = money;
