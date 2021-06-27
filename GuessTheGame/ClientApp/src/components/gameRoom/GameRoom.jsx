@@ -52,7 +52,7 @@ export const GameRoom = ({ match }) => {
       setUsers(players);
     });
 
-    signalR.on("ReceiveAnswer", (username, answer, correct) => {
+    signalR.on("UpdateGamePlayerAnswer", (username, answer, correct) => {
       alert(
         `${username} said ${answer}, it was ${correct ? "correct" : " wrong"}!`
       );
@@ -63,7 +63,7 @@ export const GameRoom = ({ match }) => {
     return () => {
       signalR.off("UpdateGameWord");
       signalR.off("PopulateSpectatorPlayerInfo");
-      signalR.off("ReceiveAnswer");
+      signalR.off("UpdateGamePlayerAnswer");
       signalR.invoke("LeaveRoom", id);
     };
   }, [signalR]);
