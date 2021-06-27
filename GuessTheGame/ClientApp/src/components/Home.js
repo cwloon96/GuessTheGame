@@ -11,12 +11,12 @@ export const Home = () => {
   useEffect(() => {
     signalR.invoke("retrieveRooms").then((res) => setRooms(res));
 
-    signalR.on("updateRooms", (res) => {
+    signalR.on("updateLobbyRooms", (res) => {
       setRooms(res);
     });
 
     return () => {
-      signalR.off("updateRooms");
+      signalR.off("updateLobbyRooms");
     };
   }, []);
 

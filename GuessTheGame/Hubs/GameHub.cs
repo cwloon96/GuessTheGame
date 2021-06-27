@@ -1,4 +1,5 @@
-﻿using GuessTheGame.Models;
+﻿using GuessTheGame.Common.Constants;
+using GuessTheGame.Models;
 using GuessTheGame.Services.UserSession;
 using Microsoft.AspNetCore.SignalR;
 using System;
@@ -38,7 +39,7 @@ namespace GuessTheGame.Hubs
         {
             var room = (GameRoom)_serviceProvider.GetService(typeof(GameRoom));
             _rooms.TryAdd(room.RoomGuid, room);
-            await UpdateRooms();
+            await UpdateLobbyRooms();
 
             return room.RoomGuid;
         }
@@ -50,7 +51,7 @@ namespace GuessTheGame.Hubs
                 await gameRoom.AddSpectator(Context.ConnectionId);
                 _userSessionService.UpdateUserSession(Context.ConnectionId, roomGuid);
 
-                await UpdateRooms();
+                await UpdateLobbyRooms();
             }
         }
 
@@ -63,7 +64,7 @@ namespace GuessTheGame.Hubs
 
                 RemoveRoomIfEmpty(roomGuid);
 
-                await UpdateRooms();
+                await UpdateLobbyRooms();
             }
         }
 
@@ -73,7 +74,7 @@ namespace GuessTheGame.Hubs
             {
                 if(await gameRoom.AddPlayer(username, Context.ConnectionId))
                 {
-                    await UpdateRooms();
+                    await UpdateLobbyRooms();
                     return true;
                 }
             }
@@ -98,7 +99,7 @@ namespace GuessTheGame.Hubs
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
                 await gameRoom.RemovePlayer(username, Context.ConnectionId);
-                await UpdateRooms();
+                await UpdateLobbyRooms();
             }
         }
 
@@ -113,12 +114,12 @@ namespace GuessTheGame.Hubs
 
             await base.OnDisconnectedAsync(exception);
             RemoveRoomIfEmpty(userLastRoom);
-            await UpdateRooms();
+            await UpdateLobbyRooms();
         }
 
-        private async Task UpdateRooms()
+        private async Task UpdateLobbyRooms()
         {
-            await Clients.All.SendAsync("UpdateRooms", RetrieveRooms());
+            await Clients.All.SendAsync(GameHubMethod.UPDATE_LOBBY_ROOMS, RetrieveRooms());
         }
 
         private void RemoveRoomIfEmpty(Guid roomGuid)
