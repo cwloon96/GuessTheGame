@@ -83,7 +83,7 @@ namespace GuessTheGame.Models
             _players.TryRemove(username, out _);
             await AddSpectator(connectionId);
 
-            await _gameHubService.SendToGroupAsync(RoomGuid, "PopulatePlayersToGroup", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+            await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
             await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username); 
         }
 
@@ -153,7 +153,7 @@ namespace GuessTheGame.Models
             {
                 if (_players.TryRemove(username, out Player player))
                 {
-                    await _gameHubService.SendToGroupAsync(RoomGuid, "PopulatePlayersToGroup", _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+                    await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
                     await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username);
                 }
             }

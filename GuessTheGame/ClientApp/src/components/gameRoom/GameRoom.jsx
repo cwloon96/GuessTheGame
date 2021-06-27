@@ -48,7 +48,7 @@ export const GameRoom = ({ match }) => {
       setUsers(players);
     });
 
-    signalR.on("PopulatePlayersToGroup", (players) => {
+    signalR.on("UpdateRoomPlayerInfo", (players) => {
       setUsers(players);
     });
 
