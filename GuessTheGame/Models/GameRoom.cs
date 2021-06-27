@@ -1,4 +1,5 @@
-﻿using GuessTheGame.Services;
+﻿using GuessTheGame.Common.Constants;
+using GuessTheGame.Services;
 using GuessTheGame.Services.Hubs;
 using System;
 using System.Collections.Concurrent;
@@ -43,7 +44,7 @@ namespace GuessTheGame.Models
             await _gameHubService.PopulatePlayersAsync(connectionId, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
 
             await _gameHubService.AddToGroupAsync(RoomGuid, connectionId);
-            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
+            await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_SPECTATOR_COUNT, new { Count = SpectatorsCount });
 
             // if there are players playing, will show the words
             if (_players.Count == MAX_PLAYER)
@@ -54,7 +55,7 @@ namespace GuessTheGame.Models
         {
             _spectators.Remove(connectionId);
             await _gameHubService.RemoveFromGroupAsync(RoomGuid, connectionId);
-            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
+            await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_SPECTATOR_COUNT, new { Count = SpectatorsCount });
         }
 
         public async Task<bool> AddPlayer(string username, string connectionId)
@@ -62,7 +63,7 @@ namespace GuessTheGame.Models
             int initialMoney = 100;
 
             _spectators.Remove(connectionId);
-            await _gameHubService.SendToGroupAsync(RoomGuid, "UpdateSpectatorCount", new { Count = SpectatorsCount });
+            await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_SPECTATOR_COUNT, new { Count = SpectatorsCount });
 
             if (_players.Count < MAX_PLAYER && _players.TryAdd(username, new Player(username, initialMoney, connectionId)))
             {
