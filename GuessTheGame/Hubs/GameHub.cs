@@ -61,8 +61,7 @@ namespace GuessTheGame.Hubs
                 await gameRoom.RemoveSpectator(Context.ConnectionId);
                 _userSessionService.UpdateUserSession(Context.ConnectionId, Guid.Empty);
 
-                if (gameRoom.IsEmpty())
-                    _rooms.TryRemove(roomGuid, out _);
+                RemoveRoomIfEmpty(roomGuid);
 
                 await UpdateRooms();
             }
@@ -113,11 +112,22 @@ namespace GuessTheGame.Hubs
             }
 
             await base.OnDisconnectedAsync(exception);
+            RemoveRoomIfEmpty(userLastRoom);
+            await UpdateRooms();
         }
 
         private async Task UpdateRooms()
         {
             await Clients.All.SendAsync("UpdateRooms", RetrieveRooms());
+        }
+
+        private void RemoveRoomIfEmpty(Guid roomGuid)
+        {
+            if(_rooms.TryGetValue(roomGuid, out var room))
+            {
+                if (room.IsEmpty())
+                    _rooms.Remove(roomGuid, out _);
+            }
         }
     }
 }
