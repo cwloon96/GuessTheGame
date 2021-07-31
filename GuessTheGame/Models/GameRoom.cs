@@ -65,7 +65,7 @@ namespace GuessTheGame.Models
             _spectators.Remove(connectionId);
             await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_SPECTATOR_COUNT, new { Count = SpectatorsCount });
 
-            if (_players.Count < MAX_PLAYER && _players.TryAdd(username, new Player(username, initialMoney, connectionId)))
+            if (_players.Count < MAX_PLAYER && _players.TryAdd(connectionId, new Player(username, initialMoney)))
             {
                 await _gameHubService.PlayerJoinAsync(RoomGuid, new { username, money = initialMoney });
 
@@ -78,18 +78,20 @@ namespace GuessTheGame.Models
             return false;
         }
 
-        public async Task RemovePlayer(string username, string connectionId)
+        public async Task RemovePlayer(string connectionId)
         {
-            _players.TryRemove(username, out _);
-            await AddSpectator(connectionId);
+            if(_players.TryRemove(connectionId, out Player player))
+            {
+                await AddSpectator(connectionId);
 
-            await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
-            await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username); 
+                await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+                await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, player.Username);
+            }
         }
 
-        public async Task ViewWord(string username, int index)
+        public async Task ViewWord(string connectionId, int index)
         {
-            if (_players.TryGetValue(username, out Player player))
+            if (_players.TryGetValue(connectionId, out Player player))
             {
                 if (player.Money >= 10)
                 {
@@ -102,7 +104,7 @@ namespace GuessTheGame.Models
                         await _gameHubService.RefreshWordAsync(RoomGuid, maskedWord);
 
                         player.Money -= 10;
-                        await UpdatePlayerBalance(username, player.Money);
+                        await UpdatePlayerBalance(player.Username, player.Money);
 
                         // all masked removed
                         if (maskedWord == currentWord)
@@ -121,24 +123,24 @@ namespace GuessTheGame.Models
 
         private Task UpdatePlayerBalance(string username, int money) => _gameHubService.UpdatePlayerBalanceAsync(RoomGuid, username, money);
 
-        public async Task SubmitAnswer(string username, string answer)
+        public async Task SubmitAnswer(string connectionId, string answer)
         {
-            if (_players.TryGetValue(username, out Player player))
+            if (_players.TryGetValue(connectionId, out Player player))
             {
                 if (player.Money >= 10)
                 {
                     player.Money -= 10;
-                    await UpdatePlayerBalance(username, player.Money);
+                    await UpdatePlayerBalance(player.Username, player.Money);
 
                     bool correct = answer == currentWord;
-                    await _gameHubService.ReceiveAnswerAsync(RoomGuid, username, answer, correct);
+                    await _gameHubService.ReceiveAnswerAsync(RoomGuid, player.Username, answer, correct);
                     if (correct)
                     {
                         int maskedCount = maskedWord.Select(x => x == '*').Count();
                         int earned = maskedCount * 10;
                         player.Money += earned;
 
-                        await UpdatePlayerBalance(username, player.Money);
+                        await UpdatePlayerBalance(player.Username, player.Money);
 
                         await RestartGame();
                     }
@@ -148,14 +150,10 @@ namespace GuessTheGame.Models
 
         public async Task DisconnectUser(string connectionId)
         {
-            string username = _players.FirstOrDefault(entry => entry.Value.ConnectionId == connectionId).Key;
-            if (!string.IsNullOrWhiteSpace(username))
+            if (_players.TryRemove(connectionId, out Player player))
             {
-                if (_players.TryRemove(username, out Player player))
-                {
-                    await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
-                    await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, username);
-                }
+                await _gameHubService.SendToGroupAsync(RoomGuid, GameHubMethod.UPDATE_ROOM_PLAYER_INFO, _players.Select(x => x.Value).Select(x => new { x.Username, x.Money }));
+                await _gameHubService.PlayerLeftAsync(RoomGuid, connectionId, player.Username);
             }
 
             await RemoveSpectator(connectionId);

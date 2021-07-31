@@ -13,7 +13,7 @@ export const GameRoom = ({ match }) => {
   const [answer, setAnswer] = useState("");
 
   const joinGame = () => {
-    signalR.invoke("joinGame", username, id).then((success) => {
+    signalR.invoke("JoinGame", username, id).then((success) => {
       if (success) {
         setJoined(true);
       } else {
@@ -23,21 +23,25 @@ export const GameRoom = ({ match }) => {
   };
 
   const leaveGame = () => {
-    signalR.invoke("leaveGame", username, id).then(() => {
+    signalR.invoke("LeaveGame", id).then(() => {
       setJoined(false);
       setUsername("");
     });
   };
 
   const viewWord = (index) => {
-    signalR.invoke("viewWord", id, username, index);
+    signalR.invoke("ViewWord", id, index);
   };
 
   const submitAnswer = () => {
     signalR
-      .invoke("submitAnswer", id, username, answer)
+      .invoke("SubmitAnswer", id, answer)
       .then(() => setAnswer(""));
-  };
+    };
+
+  const leaveRoom = () => {
+     signalR.invoke("LeaveRoom", id);
+  }
 
   useEffect(() => {
     signalR.on("UpdateGameWord", (word) => {
@@ -60,11 +64,11 @@ export const GameRoom = ({ match }) => {
 
     signalR.invoke("JoinRoom", id);
 
-    return () => {
+      return () => {
+      leaveRoom();
       signalR.off("UpdateGameWord");
       signalR.off("PopulateSpectatorPlayerInfo");
       signalR.off("UpdateGamePlayerAnswer");
-      signalR.invoke("LeaveRoom", id);
     };
   }, [signalR]);
 

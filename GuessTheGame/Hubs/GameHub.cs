@@ -59,6 +59,7 @@ namespace GuessTheGame.Hubs
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
+                await gameRoom.RemovePlayer(Context.ConnectionId);
                 await gameRoom.RemoveSpectator(Context.ConnectionId);
                 _userSessionService.UpdateUserSession(Context.ConnectionId, Guid.Empty);
 
@@ -82,23 +83,23 @@ namespace GuessTheGame.Hubs
             return false;
         }
 
-        public async Task ViewWord(Guid roomGuid, string username, int index)
+        public async Task ViewWord(Guid roomGuid, int index)
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
-                await gameRoom.ViewWord(username, index);
+                await gameRoom.ViewWord(Context.ConnectionId, index);
         }
 
-        public async Task SubmitAnswer(Guid roomGuid, string username, string answer)
+        public async Task SubmitAnswer(Guid roomGuid, string answer)
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
-                await gameRoom.SubmitAnswer(username, answer);
+                await gameRoom.SubmitAnswer(Context.ConnectionId, answer);
         }
 
-        public async Task LeaveGame(string username, Guid roomGuid)
+        public async Task LeaveGame(Guid roomGuid)
         {
             if (_rooms.TryGetValue(roomGuid, out GameRoom gameRoom))
             {
-                await gameRoom.RemovePlayer(username, Context.ConnectionId);
+                await gameRoom.RemovePlayer(Context.ConnectionId);
                 await UpdateLobbyRooms();
             }
         }
